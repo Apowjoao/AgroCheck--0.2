@@ -1,0 +1,5 @@
+{
+  "name": "Checklist de Tratores Agrícolas",
+  "description": "Sistema intuitivo para checklist diário de tratores em fazendas.",
+  "requestFramePermissions": ["camera"]
+}
