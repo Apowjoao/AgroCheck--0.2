@@ -17,12 +17,18 @@ import {
   Check,
   X,
   Loader2,
-  Home
+  Home,
+  FileText,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FARMS_DATA } from './data';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
-type Step = 'HOME' | 'FARM' | 'TRACTOR' | 'FORM' | 'SUCCESS';
+type Step = 'HOME' | 'FARM' | 'TRACTOR' | 'FORM' | 'SUCCESS' | 'REPORTS';
 
 interface Farm {
   id: number;
@@ -84,6 +90,7 @@ export default function App() {
   const [foto, setFoto] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [allChecklists, setAllChecklists] = useState<any[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -101,6 +108,7 @@ export default function App() {
 
     fetchFarms();
     updatePendingCount();
+    loadChecklists();
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -111,6 +119,11 @@ export default function App() {
   const updatePendingCount = () => {
     const pending = JSON.parse(localStorage.getItem('pending_checklists') || '[]');
     setPendingSyncCount(pending.length);
+  };
+
+  const loadChecklists = () => {
+    const saved = JSON.parse(localStorage.getItem('all_checklists') || '[]');
+    setAllChecklists(saved);
   };
 
   const fetchFarms = async () => {
@@ -264,6 +277,8 @@ export default function App() {
     const status_geral = isProblematic ? 'URGENTE' : 'NORMAL';
 
     const payload = {
+      id: Date.now(),
+      data: new Date().toLocaleString('pt-BR'),
       operador,
       trator_id: selectedTractor?.id,
       horimetro,
@@ -274,6 +289,12 @@ export default function App() {
       fazenda_nome: selectedFarm?.nome,
       trator_nome: selectedTractor?.nome
     };
+
+    // Save to all checklists (local persistence for Reports tab)
+    const saved = JSON.parse(localStorage.getItem('all_checklists') || '[]');
+    const updatedChecklists = [payload, ...saved];
+    localStorage.setItem('all_checklists', JSON.stringify(updatedChecklists));
+    setAllChecklists(updatedChecklists);
 
     try {
       if (navigator.onLine) {
@@ -324,6 +345,54 @@ export default function App() {
     setRespostas(prev => ({ ...prev, [item]: status }));
   };
 
+  const exportToExcel = () => {
+    const data = allChecklists.map(c => {
+      const row: any = {
+        'Data': c.data,
+        'Operador': c.operador,
+        'Fazenda': c.fazenda_nome,
+        'Trator': c.trator_nome,
+        'Horímetro': c.horimetro,
+        'Status Geral': c.status_geral,
+        'Observações': c.observacoes
+      };
+      // Add checklist items as columns
+      Object.entries(c.respostas).forEach(([item, status]) => {
+        row[item] = status;
+      });
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Checklists");
+    XLSX.writeFile(wb, `Relatorio_Checklist_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    doc.text("Relatório de Checklists de Tratores", 14, 15);
+    
+    const tableData = allChecklists.map(c => [
+      c.data,
+      c.operador,
+      c.fazenda_nome,
+      c.trator_nome,
+      c.status_geral,
+      c.observacoes || '-'
+    ]);
+
+    (doc as any).autoTable({
+      head: [['Data', 'Operador', 'Fazenda', 'Trator', 'Status', 'Observações']],
+      body: tableData,
+      startY: 20,
+      theme: 'grid',
+      headStyles: { fillStyle: [5, 150, 105] }
+    });
+
+    doc.save(`Relatorio_Checklist_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900 font-sans pb-10">
       {/* Header */}
@@ -370,13 +439,115 @@ export default function App() {
               <h2 className="text-3xl font-extrabold mb-4 text-stone-800">Bem-vindo ao AgroCheck</h2>
               <p className="text-stone-600 mb-10 text-lg">Realize o checklist diário do seu trator de forma simples e rápida.</p>
               
-              <button 
-                onClick={handleStart}
-                className="w-full py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-2xl font-bold shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
-              >
-                NOVO CHECK-LIST
-                <ArrowRight className="w-8 h-8" />
-              </button>
+              <div className="grid grid-cols-1 gap-4 w-full">
+                <button 
+                  onClick={handleStart}
+                  className="w-full py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-2xl font-bold shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
+                >
+                  NOVO CHECK-LIST
+                  <ArrowRight className="w-8 h-8" />
+                </button>
+
+                <button 
+                  onClick={() => setStep('REPORTS')}
+                  className="w-full py-6 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-2xl text-2xl font-bold shadow-md flex items-center justify-center gap-3 active:scale-95 transition-all"
+                >
+                  RELATÓRIOS
+                  <FileText className="w-8 h-8" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 'REPORTS' && (
+            <motion.div 
+              key="reports"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="w-full max-w-4xl mx-auto"
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setStep('HOME')} className="p-2 -ml-2"><ArrowLeft /></button>
+                  <h2 className="text-3xl font-bold">Relatórios</h2>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button 
+                    onClick={exportToExcel}
+                    className="flex-1 md:flex-none px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-5 h-5" /> EXCEL
+                  </button>
+                  <button 
+                    onClick={exportToPDF}
+                    className="flex-1 md:flex-none px-4 py-2 bg-red-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-red-700 transition-colors"
+                  >
+                    <Download className="w-5 h-5" /> PDF
+                  </button>
+                </div>
+              </div>
+
+              {allChecklists.length === 0 ? (
+                <div className="bg-white p-12 rounded-3xl text-center shadow-sm">
+                  <FileText className="w-16 h-16 text-stone-300 mx-auto mb-4" />
+                  <p className="text-stone-500 text-lg">Nenhum checklist encontrado.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Mobile View: Cards */}
+                  <div className="md:hidden space-y-4">
+                    {allChecklists.map((c) => (
+                      <div key={c.id} className="bg-white p-5 rounded-2xl shadow-sm border-l-4 border-emerald-500">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-bold text-stone-400">{c.data}</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.status_geral === 'URGENTE' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            {c.status_geral}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-lg">{c.trator_nome}</h4>
+                        <p className="text-sm text-stone-500 mb-3">{c.fazenda_nome} • {c.operador}</p>
+                        <div className="text-xs text-stone-600 line-clamp-2 italic">
+                          {c.observacoes || "Sem observações"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden md:block overflow-hidden bg-white rounded-2xl shadow-sm border border-stone-200">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-stone-50 border-bottom border-stone-200">
+                          <th className="p-4 font-bold text-stone-600 text-sm">DATA</th>
+                          <th className="p-4 font-bold text-stone-600 text-sm">OPERADOR</th>
+                          <th className="p-4 font-bold text-stone-600 text-sm">FAZENDA</th>
+                          <th className="p-4 font-bold text-stone-600 text-sm">TRATOR</th>
+                          <th className="p-4 font-bold text-stone-600 text-sm">STATUS</th>
+                          <th className="p-4 font-bold text-stone-600 text-sm">OBS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allChecklists.map((c) => (
+                          <tr key={c.id} className="border-t border-stone-100 hover:bg-stone-50 transition-colors">
+                            <td className="p-4 text-sm">{c.data}</td>
+                            <td className="p-4 text-sm font-medium">{c.operador}</td>
+                            <td className="p-4 text-sm">{c.fazenda_nome}</td>
+                            <td className="p-4 text-sm">{c.trator_nome}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${c.status_geral === 'URGENTE' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                {c.status_geral}
+                              </span>
+                            </td>
+                            <td className="p-4 text-sm text-stone-400 truncate max-w-[150px]">{c.observacoes || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 

@@ -193,9 +193,7 @@ async function startServer() {
       });
 
       const isUrgente = status_geral === "URGENTE";
-      const subject = isUrgente 
-        ? `🚨 URGENTE – ${fazenda_nome} – ${trator_nome}`
-        : `Check-list – ${fazenda_nome} – ${trator_nome}`;
+      const subject = "Novo Check-list de Trator";
 
       const itensHtml = Object.entries(respostas).map(([item, status]) => {
         const color = status === 'NC' ? 'red' : (status === 'C' ? 'green' : 'gray');
@@ -204,22 +202,24 @@ async function startServer() {
 
       const mailOptions: any = {
         from: process.env.EMAIL_FROM,
-        to: process.env.EMAIL_TO,
+        to: "joao.victor@sweetfruits.com.br",
         subject: subject,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
-            <h2 style="text-align: center; color: ${isUrgente ? '#dc2626' : '#059669'};">Relatório de Check-list</h2>
+            <h2 style="text-align: center; color: ${isUrgente ? '#dc2626' : '#059669'};">Novo Check-list de Trator</h2>
+            <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
             <p><strong>Status Geral:</strong> <span style="color: ${isUrgente ? '#dc2626' : '#059669'}; font-weight: bold;">${status_geral}</span></p>
             <p><strong>Fazenda:</strong> ${fazenda_nome}</p>
             <p><strong>Trator:</strong> ${trator_nome}</p>
             <p><strong>Operador:</strong> ${operador}</p>
             <p><strong>Horímetro:</strong> ${horimetro}</p>
             <hr />
-            <h3>Itens Verificados:</h3>
+            <h3>Itens do Check-list:</h3>
             <ul style="list-style: none; padding: 0;">
               ${itensHtml}
             </ul>
             <hr />
+            <p><strong>Problemas encontrados:</strong> ${isUrgente ? "Sim (ver itens em vermelho)" : "Não"}</p>
             <p><strong>Observações:</strong> ${observacoes || "Nenhuma"}</p>
           </div>
         `,
