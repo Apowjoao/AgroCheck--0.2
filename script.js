@@ -1,3 +1,24 @@
+// Firebase Configuration - REPLACE WITH YOUR OWN CONFIG FROM FIREBASE CONSOLE
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+let db = null;
+try {
+    if (firebaseConfig.projectId !== "YOUR_PROJECT_ID") {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+    }
+} catch (e) {
+    console.error("Firebase initialization failed", e);
+}
+
 const FARMS_DATA = [
     {
         id: 1,
@@ -127,13 +148,34 @@ let selectedFarm = null;
 let selectedTractor = null;
 let responses = {};
 let photo = null;
-let allChecklists = JSON.parse(localStorage.getItem('all_checklists') || '[]');
+let allChecklists = [];
 
 // Initialize
 function init() {
     lucide.createIcons();
     renderFarms();
     renderChecklistItems();
+    loadChecklists();
+}
+
+// Load Checklists from Firebase or LocalStorage fallback
+async function loadChecklists() {
+    if (db) {
+        try {
+            const snapshot = await db.collection('checklists').orderBy('timestamp', 'desc').get();
+            allChecklists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderReports();
+        } catch (e) {
+            console.error("Error loading from Firestore", e);
+            loadFromLocal();
+        }
+    } else {
+        loadFromLocal();
+    }
+}
+
+function loadFromLocal() {
+    allChecklists = JSON.parse(localStorage.getItem('all_checklists') || '[]');
     renderReports();
 }
 
@@ -159,7 +201,7 @@ function showStep(step) {
         statusBar.classList.add('hidden');
     }
 
-    if (step === 'REPORTS') renderReports();
+    if (step === 'REPORTS') loadChecklists();
     
     window.scrollTo(0, 0);
     lucide.createIcons();
@@ -254,19 +296,16 @@ function updateStatusBar() {
     const isProblematic = Object.values(responses).some(s => s === 'NC');
     const statusBar = document.getElementById('status-bar');
     const statusText = document.getElementById('status-text');
-    const photoLabel = document.getElementById('photo-required-label');
     const btnSubmit = document.getElementById('btn-submit');
 
     if (isProblematic) {
         statusBar.classList.replace('bg-emerald-600', 'bg-red-600');
         statusText.textContent = 'URGENTE';
-        photoLabel.classList.remove('hidden');
         btnSubmit.classList.replace('bg-emerald-600', 'bg-red-600');
         btnSubmit.classList.replace('hover:bg-emerald-700', 'hover:bg-red-700');
     } else {
         statusBar.classList.replace('bg-red-600', 'bg-emerald-600');
         statusText.textContent = 'NORMAL';
-        photoLabel.classList.add('hidden');
         btnSubmit.classList.replace('bg-red-600', 'bg-emerald-600');
         btnSubmit.classList.replace('hover:bg-red-700', 'hover:bg-emerald-700');
     }
@@ -325,7 +364,7 @@ function removePhoto() {
 }
 
 // Form Submission
-document.getElementById('checklist-form').onsubmit = function(e) {
+document.getElementById('checklist-form').onsubmit = async function(e) {
     e.preventDefault();
     
     const operador = document.getElementById('input-operador').value;
@@ -333,13 +372,8 @@ document.getElementById('checklist-form').onsubmit = function(e) {
     const observacoes = document.getElementById('input-observacoes').value;
     const isProblematic = Object.values(responses).some(s => s === 'NC');
 
-    if (isProblematic && !photo) {
-        alert("Uma foto é obrigatória quando há itens não conformes (NC).");
-        return;
-    }
-
     const report = {
-        id: Date.now(),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         data: new Date().toLocaleString('pt-BR'),
         operador,
         horimetro,
@@ -351,11 +385,24 @@ document.getElementById('checklist-form').onsubmit = function(e) {
         status_geral: isProblematic ? 'URGENTE' : 'NORMAL'
     };
 
-    allChecklists.unshift(report);
-    localStorage.setItem('all_checklists', JSON.stringify(allChecklists));
+    if (db) {
+        try {
+            await db.collection('checklists').add(report);
+        } catch (e) {
+            console.error("Error saving to Firestore", e);
+            saveToLocal(report);
+        }
+    } else {
+        saveToLocal(report);
+    }
     
     showStep('SUCCESS');
 };
+
+function saveToLocal(report) {
+    allChecklists.unshift(report);
+    localStorage.setItem('all_checklists', JSON.stringify(allChecklists));
+}
 
 function resetForm() {
     document.getElementById('checklist-form').reset();

@@ -13,6 +13,11 @@
     <!-- jsPDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -128,7 +133,7 @@
                 <!-- Photo Upload -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm">
                     <label class="block text-sm font-bold text-stone-600 mb-3">
-                        FOTO DO TRATOR <span id="photo-required-label" class="text-red-500 hidden">(OBRIGATÓRIO)</span>
+                        FOTO DO TRATOR <span class="text-stone-400 font-normal">(OPCIONAL)</span>
                     </label>
                     
                     <div id="photo-preview-container" class="hidden relative rounded-xl overflow-hidden shadow-md">
