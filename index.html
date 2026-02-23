@@ -176,7 +176,7 @@
 
         <!-- STEP: REPORTS -->
         <div id="step-REPORTS" class="step-content">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div class="flex items-center gap-2">
                     <button onclick="showStep('HOME')" class="p-2 -ml-2"><i data-lucide="arrow-left"></i></button>
                     <h2 class="text-3xl font-bold">Relatórios</h2>
@@ -188,6 +188,31 @@
                     </button>
                     <button onclick="exportToPDF()" class="flex-1 md:flex-none px-4 py-2 bg-red-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-red-700 transition-colors">
                         <i data-lucide="download" class="w-5 h-5"></i> PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-stone-200 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Fazenda</label>
+                        <select id="filter-farm" onchange="applyFilters()" class="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-sm outline-none focus:border-emerald-500">
+                            <option value="">Todas as Fazendas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Data Inicial</label>
+                        <input type="date" id="filter-start-date" onchange="applyFilters()" class="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-sm outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Data Final</label>
+                        <input type="date" id="filter-end-date" onchange="applyFilters()" class="w-full p-2 bg-stone-50 border border-stone-200 rounded-lg text-sm outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="clearFilters()" class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors">
+                        <i data-lucide="filter-x" class="w-4 h-4"></i> LIMPAR FILTROS
                     </button>
                 </div>
             </div>

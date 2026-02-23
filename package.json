@@ -2,6 +2,7 @@
   "name": "tractor-checklist-static",
   "version": "1.0.0",
   "scripts": {
-    "dev": "npx -y serve ."
+    "dev": "npx -y serve .",
+    "lint": "echo 'No linting needed for static project'"
   }
 }
