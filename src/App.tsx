@@ -20,6 +20,7 @@ import {
   Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FARMS_DATA } from './data';
 
 type Step = 'HOME' | 'FARM' | 'TRACTOR' | 'FORM' | 'SUCCESS';
 
@@ -116,18 +117,24 @@ export default function App() {
     setLoading(true);
     try {
       if (navigator.onLine) {
-        const res = await fetch('/api/fazendas');
-        const data = await res.json();
-        setFarms(data);
-        localStorage.setItem('cached_farms', JSON.stringify(data));
+        try {
+          const res = await fetch('/api/fazendas');
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          setFarms(data);
+          localStorage.setItem('cached_farms', JSON.stringify(data));
+        } catch {
+          // Fallback to local data if API fails
+          setFarms(FARMS_DATA);
+        }
       } else {
         const cached = localStorage.getItem('cached_farms');
         if (cached) setFarms(JSON.parse(cached));
+        else setFarms(FARMS_DATA);
       }
     } catch (err) {
       console.error(err);
-      const cached = localStorage.getItem('cached_farms');
-      if (cached) setFarms(JSON.parse(cached));
+      setFarms(FARMS_DATA);
     } finally {
       setLoading(false);
     }
@@ -137,18 +144,28 @@ export default function App() {
     setLoading(true);
     try {
       if (navigator.onLine) {
-        const res = await fetch(`/api/tratores/${farmId}`);
-        const data = await res.json();
-        setTractors(data);
-        localStorage.setItem(`cached_tractors_${farmId}`, JSON.stringify(data));
+        try {
+          const res = await fetch(`/api/tratores/${farmId}`);
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          setTractors(data);
+          localStorage.setItem(`cached_tractors_${farmId}`, JSON.stringify(data));
+        } catch {
+          const farm = FARMS_DATA.find(f => f.id === farmId);
+          if (farm) setTractors(farm.tratores);
+        }
       } else {
         const cached = localStorage.getItem(`cached_tractors_${farmId}`);
         if (cached) setTractors(JSON.parse(cached));
+        else {
+          const farm = FARMS_DATA.find(f => f.id === farmId);
+          if (farm) setTractors(farm.tratores);
+        }
       }
     } catch (err) {
       console.error(err);
-      const cached = localStorage.getItem(`cached_tractors_${farmId}`);
-      if (cached) setTractors(JSON.parse(cached));
+      const farm = FARMS_DATA.find(f => f.id === farmId);
+      if (farm) setTractors(farm.tratores);
     } finally {
       setLoading(false);
     }
@@ -487,8 +504,18 @@ export default function App() {
                   <h3 className="font-bold text-stone-500 px-2 uppercase tracking-wider text-sm">Itens de Inspeção</h3>
                   
                   {CHECKLIST_ITEMS.map(item => (
-                    <div key={item} className="bg-white p-5 rounded-2xl shadow-sm">
-                      <p className="font-bold mb-3 text-stone-800">{item}</p>
+                    <div 
+                      key={item} 
+                      className={`bg-white p-5 rounded-2xl shadow-sm transition-all border-2 ${
+                        respostas[item] === 'NC' ? 'border-red-500 bg-red-50/30' : 'border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="font-bold text-stone-800">{item}</p>
+                        {respostas[item] === 'NC' && (
+                          <AlertCircle className="w-5 h-5 text-red-600 animate-pulse" />
+                        )}
+                      </div>
                       <div className="grid grid-cols-3 gap-2">
                         {(['C', 'NC', 'N/A'] as ChecklistStatus[]).map(status => (
                           <button
