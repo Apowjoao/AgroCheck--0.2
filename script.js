@@ -167,7 +167,6 @@ function init() {
     loadChecklists();
 }
 
-// Load Checklists from Firebase or LocalStorage fallback
 async function loadChecklists() {
     if (db) {
         try {
